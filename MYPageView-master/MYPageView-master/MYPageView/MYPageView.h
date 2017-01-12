@@ -18,19 +18,12 @@
 
 @interface MYPageView : UIView
 
-typedef NS_ENUM(NSInteger, ImageType) {
-    ImageOfLocal,
-    ImageOfNetwork,
-};
 
 @property (nonatomic, weak) id<MYPageViewDelegate> delegate;
 
 
 
-+ (instancetype)pageView;
-
-
-- (void)addImageNames:(NSArray *)imageNames placeholderImageName:(NSString *)placeholderImageName imageType:(ImageType)imageType;
+- (void)addImageNames:(NSArray *)imageNames placeholder:(id)placeholder;
 - (void)addView:(UIView *)view imageNum:(NSInteger)imageNum frame:(CGRect)frame;
 
 
@@ -41,8 +34,8 @@ typedef NS_ENUM(NSInteger, ImageType) {
 @property (nonatomic, strong) UIColor *pageCurrentColor;
 @property (nonatomic, strong) UIColor *pageOtherColor;
 
-@property (nonatomic, copy) NSString *pageCurrentImageName;
-@property (nonatomic, copy) NSString *pageOtherImageName;
+@property (nonatomic, copy) UIImage *pageCurrentImage;
+@property (nonatomic, copy) UIImage *pageOtherImage;
 
 @property (nonatomic, assign) CGRect pageControlFrame;
 

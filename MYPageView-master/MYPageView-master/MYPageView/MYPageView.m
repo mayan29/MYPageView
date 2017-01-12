@@ -25,12 +25,7 @@
 
 
 
-#pragma mark - Initialization
-
-+ (instancetype)pageView
-{
-    return [[self alloc] init];
-}
+#pragma mark - init
 
 - (instancetype)initWithFrame:(CGRect)frame
 {
@@ -42,6 +37,45 @@
     return self;
 }
 
+
+- (void)layoutSubviews
+{
+    [super layoutSubviews];
+    
+    if (CGRectEqualToRect(self.frame, CGRectZero)) {
+        self.frame = CGRectMake(0, 0, [UIScreen mainScreen].bounds.size.width, 200);
+    }
+    
+    CGFloat scrollW = self.frame.size.width;
+    CGFloat scrollH = self.frame.size.height;
+    CGFloat pageW = self.pageView.frame.size.width;
+    CGFloat pageH = self.pageView.frame.size.height;
+    
+    self.scrollView.frame = self.bounds;
+    self.scrollView.contentSize = CGSizeMake(scrollW * self.imageNames.count, 0);
+    
+    if (CGRectEqualToRect(self.pageControlFrame, CGRectZero)) {
+        self.pageView.frame = CGRectMake((scrollW - pageW) * 0.5, scrollH - pageH, pageW, pageH);
+    } else {
+        self.pageView.frame = self.pageControlFrame;
+    }
+    
+    for (int i = 0; i < self.scrollView.subviews.count; i++) {
+        
+        UIImageView *imgView = self.scrollView.subviews[i];
+        imgView.frame = CGRectMake(i * scrollW, 0, scrollW, scrollH);
+    }
+}
+
+
+- (void)dealloc
+{
+    [self stopTimer];
+}
+
+
+
+#pragma mark - set
 
 
 - (void)setPageCurrentColor:(UIColor *)pageCurrentColor
@@ -57,15 +91,15 @@
 
 
 
-- (void)setPageCurrentImageName:(NSString *)pageCurrentImageName
+- (void)setPageCurrentImage:(UIImage *)pageCurrentImage
 {
-    _pageCurrentImageName = pageCurrentImageName;
-    [self.pageView setValue:[UIImage imageNamed:pageCurrentImageName] forKeyPath:@"currentPageImage"];
+    _pageCurrentImage = pageCurrentImage;
+    [self.pageView setValue:pageCurrentImage forKeyPath:@"currentPageImage"];
 }
-- (void)setPageOtherImageName:(NSString *)pageOtherImageName
+- (void)setPageOtherImage:(UIImage *)pageOtherImage
 {
-    _pageOtherImageName = pageOtherImageName;
-    [self.pageView setValue:[UIImage imageNamed:pageOtherImageName] forKeyPath:@"pageImage"];
+    _pageOtherImage = pageOtherImage;
+    [self.pageView setValue:pageOtherImage forKeyPath:@"pageImage"];
 }
 
 
@@ -87,6 +121,12 @@
 {
     _scrollTime = scrollTime;
     
+    if (scrollTime <= 0) {
+        
+        NSLog(@"%s error : scrollTime不能小于或等于0", __PRETTY_FUNCTION__);
+        return;
+    }
+    
     self.isAutoScroll = YES;
 }
 
@@ -104,29 +144,51 @@
 
 - (void)addView:(UIView *)view imageNum:(NSInteger)imageNum frame:(CGRect)frame
 {
-    if (imageNum >= self.scrollView.subviews.count) return;
+    if (imageNum >= self.scrollView.subviews.count || imageNum < 0) {
+        
+        NSLog(@"%s error : 请输入正确的imageNum", __PRETTY_FUNCTION__);
+        return;
+    }
     
     UIImageView *imageView = self.scrollView.subviews[imageNum];
     view.frame = frame;
     [imageView addSubview:view];
 }
 
-- (void)addImageNames:(NSArray *)imageNames placeholderImageName:(NSString *)placeholderImageName imageType:(ImageType)imageType
+- (void)addImageNames:(NSArray *)imageNames placeholder:(id)placeholder
 {
     _imageNames = imageNames;
     
     [self.scrollView.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
     
-    for (NSString *imgName in imageNames) {
+    
+    for (id img in imageNames) {
         
         UIImageView *imgView = [[UIImageView alloc] init];
         
-        if (imageType == ImageOfLocal) {
+        if ([img isKindOfClass:[NSString class]]) {
             
-            imgView.image = [UIImage imageNamed:imgName];
-        } else if (imageType == ImageOfNetwork) {
+            if ([UIImage imageNamed:img]) {
+                imgView.image = [UIImage imageNamed:img];
+            } else {
+                
+                if ([placeholder isKindOfClass:[NSString class]]) {
+                    [imgView sd_setImageWithURL:[NSURL URLWithString:img] placeholderImage:[UIImage imageNamed:placeholder]];
+                } else if ([placeholder isKindOfClass:[UIImage class]]) {
+                    [imgView sd_setImageWithURL:[NSURL URLWithString:img] placeholderImage:placeholder];
+                } else if (placeholder == nil) {
+                    [imgView sd_setImageWithURL:[NSURL URLWithString:img]];
+                } else {
+                    NSLog(@"%s error : placeholder只能为NSString或UIImage格式", __PRETTY_FUNCTION__);
+                    [imgView sd_setImageWithURL:[NSURL URLWithString:img]];
+                } 
+            }
+   
+        } else if ([img isKindOfClass:[UIImage class]]) {
             
-            [imgView sd_setImageWithURL:[NSURL URLWithString:imgName] placeholderImage:[UIImage imageNamed:placeholderImageName]];
+            imgView.image = img;
+        } else {
+            NSLog(@"%s error : img只能为NSString或UIImage格式", __PRETTY_FUNCTION__);
         }
         
         imgView.userInteractionEnabled = YES;
@@ -139,44 +201,12 @@
 
 
 
-#pragma mark - Layout
-
-- (void)layoutSubviews
-{
-    [super layoutSubviews];
-    
-    if ([NSStringFromCGRect(self.frame) isEqualToString:@"{{0, 0}, {0, 0}}"]) {
-        self.frame = CGRectMake(0, 0, [UIScreen mainScreen].bounds.size.width, 200);
-    }
-    
-    CGFloat scrollW = self.scrollView.frame.size.width;
-    CGFloat scrollH = self.scrollView.frame.size.height;
-    CGFloat pageW = self.pageView.frame.size.width;
-    CGFloat pageH = self.pageView.frame.size.height;
-    
-    self.scrollView.frame = self.bounds;
-    self.scrollView.contentSize = CGSizeMake(scrollW * self.imageNames.count, 0);
-    
-    if ([NSStringFromCGRect(self.pageControlFrame) isEqualToString:@"{{0, 0}, {0, 0}}"]) {
-        self.pageView.frame = CGRectMake((scrollW - pageW) * 0.5, scrollH - pageH, pageW, pageH);
-    } else {
-        self.pageView.frame = self.pageControlFrame;
-    }
-    
-    for (int i = 0; i < self.scrollView.subviews.count; i++) {
-        
-        UIImageView *imgView = self.scrollView.subviews[i];
-        imgView.frame = CGRectMake(i * scrollW, 0, scrollW, scrollH);
-    }
-}
-
-
 
 #pragma mark - UIScrollViewDelegate
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView
 {
-    self.pageView.currentPage = (int)(scrollView.contentOffset.x / scrollView.frame.size.width + 0.5);
+    self.pageView.currentPage = (NSInteger)(scrollView.contentOffset.x / scrollView.frame.size.width + 0.5);
 }
 
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView
@@ -190,6 +220,17 @@
 {
     if (self.isAutoScroll) {
         [self startTimer];
+    }
+}
+
+
+
+#pragma mark - TapDelegate
+
+- (void)tapClick:(UITapGestureRecognizer *)sender {
+    
+    if ([self.delegate respondsToSelector:@selector(pageView:didSelectNum:)]) {
+        [self.delegate pageView:self didSelectNum:self.pageView.currentPage];
     }
 }
 
@@ -223,18 +264,7 @@
 
 
 
-#pragma mark - TapDelegate
-
-- (void)tapClick:(UITapGestureRecognizer *)sender {
-    
-    if ([self.delegate respondsToSelector:@selector(pageView:didSelectNum:)]) {
-        [self.delegate pageView:self didSelectNum:self.pageView.currentPage];
-    }
-}
-
-
-
-#pragma mark - LazyLoad
+#pragma mark - lazy
 
 - (UIScrollView *)scrollView
 {
@@ -254,15 +284,6 @@
         _pageView = [[UIPageControl alloc] init];
     }
     return _pageView;
-}
-
-
-
-#pragma mark - Other
-
-- (void)dealloc
-{
-    [self stopTimer];
 }
 
 

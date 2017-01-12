@@ -9,7 +9,7 @@
 #import "ViewController.h"
 #import "MYPageView.h"
 
-@interface ViewController ()
+@interface ViewController () <MYPageViewDelegate>
 
 @end
 
@@ -20,14 +20,21 @@
     
     NSArray *imageNames = @[@"pic0", @"pic1", @"pic2", @"pic3", @"pic4"];
 
-    MYPageView *pageView = [MYPageView pageView];
+    
+    MYPageView *pageView = [[MYPageView alloc] init];
     pageView.frame = CGRectMake(0, 100, [UIScreen mainScreen].bounds.size.width, 200);
+    pageView.delegate = self;
     pageView.scrollTime = 3;
     pageView.pageCurrentColor = [UIColor orangeColor];
     pageView.pageOtherColor = [UIColor blueColor];
-    [pageView addImageNames:imageNames placeholderImageName:@"pic_placeholder" imageType:ImageOfLocal];
+    [pageView addImageNames:imageNames placeholder:@"pic_placeholder"];
     
     [self.view addSubview:pageView];
+}
+
+- (void)pageView:(MYPageView *)pageView didSelectNum:(NSInteger)num
+{
+    NSLog(@"点击了第 %ld 幅图",num);
 }
 
 @end
